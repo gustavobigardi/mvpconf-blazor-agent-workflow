@@ -19,6 +19,7 @@ public enum WorkflowEventType
     AgentStarted,
     AgentCompleted,
     ApprovalRequired,
+    ApprovalGranted,
     Completed
 }
 

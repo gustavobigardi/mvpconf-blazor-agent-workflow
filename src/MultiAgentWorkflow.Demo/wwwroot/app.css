@@ -123,6 +123,7 @@ a, .btn-link {
 }
 
 .primary-action,
+.approve-action,
 .secondary-action {
     border: 0;
     font-weight: 800;
@@ -134,15 +135,39 @@ a, .btn-link {
     color: #fff;
 }
 
+.approve-action {
+    background: #111;
+    color: #fff;
+}
+
 .secondary-action {
     background: #e7e7e7;
     color: #121212;
 }
 
 .primary-action:disabled,
+.approve-action:disabled,
 .secondary-action:disabled {
     cursor: not-allowed;
     opacity: .55;
+}
+
+.approval-box {
+    background: #111;
+    color: #fff;
+    display: grid;
+    gap: .2rem;
+    margin-bottom: 1.25rem;
+    padding: .85rem 1rem;
+}
+
+.approval-box strong {
+    color: #08b8c8;
+}
+
+.approval-box span {
+    color: #f2f2f2;
+    font-size: .92rem;
 }
 
 .agent-list {
@@ -214,6 +239,11 @@ a, .btn-link {
 
 .timeline-item.approvalrequired .timeline-dot {
     background: #111;
+}
+
+.timeline-item.approvalgranted .timeline-dot {
+    background: #08b8c8;
+    box-shadow: 0 0 0 3px rgba(8, 184, 200, .2);
 }
 
 .timeline-item.completed .timeline-dot {

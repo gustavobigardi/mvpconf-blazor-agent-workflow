@@ -20,8 +20,16 @@ builder.Services.AddScoped(sp =>
     {
         Mode = section["Mode"] ?? "Simulated",
         ProjectEndpoint = section["ProjectEndpoint"],
+        OpenAIEndpoint = section["OpenAIEndpoint"],
         ModelDeploymentName = section["ModelDeploymentName"],
-        AgentName = section["AgentName"] ?? "multi-agent-workflow-demo"
+        AgentName = section["AgentName"] ?? "multi-agent-workflow-demo",
+        ApiKey = section["ApiKey"],
+        MaxOutputTokens = int.TryParse(section["MaxOutputTokens"], out var maxOutputTokens)
+            ? maxOutputTokens
+            : 420,
+        Temperature = float.TryParse(section["Temperature"], out var temperature)
+            ? temperature
+            : 0f
     };
 
     return new AgentWorkflowDemoService(options);

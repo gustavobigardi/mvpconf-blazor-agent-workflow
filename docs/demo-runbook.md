@@ -28,7 +28,7 @@ Triar um incidente de checkout intermitente apos deploy: clientes relatam erro a
 
 Clique em `Executar workflow`.
 
-Mostre que o primeiro evento registra se a aplicacao esta em modo simulado ou Foundry.
+Mostre que o primeiro evento registra se a aplicacao esta em modo simulado ou Foundry. No modo Foundry, esse evento mostra o endpoint normalizado e o deployment usado.
 
 ## Passo 3: agentes especializados
 
@@ -54,7 +54,7 @@ No evento final, destaque:
 - o fluxo ficou observavel;
 - cada agente teve fronteira clara;
 - a UI conseguiu exibir progresso;
-- a troca do simulador por Foundry fica isolada no servico do workflow.
+- o modo Foundry troca as respostas deterministicas por chamadas reais ao deployment.
 - o participante tem um caso pronto para executar, alterar e evoluir no repo.
 
 ## Plano B

@@ -39,10 +39,24 @@
                 <button class="primary-action" @onclick="RunWorkflowAsync" disabled="@IsRunning">
                     @(IsRunning ? "Executando..." : "Executar workflow")
                 </button>
+                @if (IsWaitingForApproval)
+                {
+                    <button class="approve-action" @onclick="ApproveWorkflowAsync">
+                        Aprovar e continuar revisão
+                    </button>
+                }
                 <button class="secondary-action" @onclick="Reset" disabled="@IsRunning">
                     Limpar
                 </button>
             </div>
+
+            @if (IsWaitingForApproval)
+            {
+                <div class="approval-box">
+                    <strong>Checkpoint humano ativo</strong>
+                    <span>Revise as ações propostas pelo Executor e aprove para liberar o Reviewer.</span>
+                </div>
+            }
 
             <div class="agent-list">
                 @foreach (var agent in Workflow.Agents)
@@ -97,12 +111,14 @@
 @code {
     private readonly List<WorkflowEvent> Events = [];
     private CancellationTokenSource? _runCts;
+    private TaskCompletionSource? _approvalTcs;
 
     private string Goal { get; set; } =
         "Triar um incidente de checkout intermitente apos deploy: clientes relatam erro ao finalizar compra, impacto alto e causa ainda desconhecida.";
 
     private bool RequireApproval { get; set; } = true;
     private bool IsRunning { get; set; }
+    private bool IsWaitingForApproval { get; set; }
 
     private async Task RunWorkflowAsync()
     {
@@ -113,31 +129,58 @@
 
         Events.Clear();
         IsRunning = true;
+        IsWaitingForApproval = false;
         _runCts = new CancellationTokenSource();
 
         try
         {
             var request = new WorkflowRequest(Goal.Trim(), RequireApproval);
-            await foreach (var item in Workflow.RunAsync(request, _runCts.Token))
+            await foreach (var item in Workflow.RunAsync(request, WaitForHumanApprovalAsync, _runCts.Token))
             {
                 Events.Add(item);
+                if (item.Type == WorkflowEventType.ApprovalRequired)
+                {
+                    IsWaitingForApproval = true;
+                }
+                else if (item.Type == WorkflowEventType.ApprovalGranted)
+                {
+                    IsWaitingForApproval = false;
+                }
+
                 await InvokeAsync(StateHasChanged);
             }
         }
         finally
         {
             IsRunning = false;
+            IsWaitingForApproval = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private async Task WaitForHumanApprovalAsync(CancellationToken cancellationToken)
+    {
+        _approvalTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var registration = cancellationToken.Register(() => _approvalTcs.TrySetCanceled(cancellationToken));
+        await _approvalTcs.Task;
+    }
+
+    private Task ApproveWorkflowAsync()
+    {
+        _approvalTcs?.TrySetResult();
+        IsWaitingForApproval = false;
+        return InvokeAsync(StateHasChanged);
     }
 
     private void Reset()
     {
         Events.Clear();
+        IsWaitingForApproval = false;
     }
 
     public void Dispose()
     {
+        _approvalTcs?.TrySetCanceled();
         _runCts?.Cancel();
         _runCts?.Dispose();
     }

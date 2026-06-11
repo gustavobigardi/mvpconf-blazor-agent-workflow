@@ -5,6 +5,7 @@ Demo em .NET, C# e Blazor para a palestra do MVP Conf Regional Sorocaba dentro d
 O projeto foi pensado para palco:
 
 - roda localmente em modo simulado, sem depender de internet;
+- chama Azure AI Foundry de verdade quando `Foundry:Mode=Foundry` esta configurado;
 - mostra uma UI Blazor acompanhando eventos de um workflow multi-agent;
 - separa agentes por responsabilidade: Planner, Researcher, Executor e Reviewer;
 - inclui checkpoint humano para demonstrar human-in-the-loop;
@@ -42,7 +43,7 @@ dotnet test
 
 ## Configurar Foundry
 
-Leia [docs/foundry-setup.md](docs/foundry-setup.md). O projeto ainda nao chama o SDK real; ele deixa o ponto de integracao isolado em `AgentWorkflowDemoService`, para que a demo local seja estavel e a troca para Foundry seja uma evolucao controlada.
+Leia [docs/foundry-setup.md](docs/foundry-setup.md). O modo real usa o endpoint OpenAI-compatible do Azure AI Foundry e chama o deployment configurado em cada agente do workflow.
 
 ## Roteiro de demo
 

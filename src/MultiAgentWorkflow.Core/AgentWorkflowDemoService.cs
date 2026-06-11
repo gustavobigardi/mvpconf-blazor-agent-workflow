@@ -9,11 +9,12 @@ public sealed class AgentWorkflowDemoService
     public AgentWorkflowDemoService(FoundryOptions options)
     {
         _options = options;
+        var chatClient = _options.IsConfigured ? new FoundryChatClient(_options) : null;
         _agents = [
-            new PlannerAgent(),
-            new ResearchAgent(),
-            new ExecutorAgent(),
-            new ReviewerAgent()
+            new PlannerAgent(chatClient),
+            new ResearchAgent(chatClient),
+            new ExecutorAgent(chatClient),
+            new ReviewerAgent(chatClient)
         ];
     }
 
@@ -22,6 +23,7 @@ public sealed class AgentWorkflowDemoService
 
     public async IAsyncEnumerable<WorkflowEvent> RunAsync(
         WorkflowRequest request,
+        Func<CancellationToken, Task>? waitForHumanApproval = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var context = new WorkflowContext(request);
@@ -31,7 +33,7 @@ public sealed class AgentWorkflowDemoService
             "Workflow",
             "Workflow iniciado",
             _options.IsConfigured
-                ? "Configuracao Foundry detectada; o fluxo esta pronto para ser conectado ao runtime real."
+                ? $"Foundry ativo: chamando deployment '{_options.ModelDeploymentName}' em {_options.ResolveOpenAIEndpoint()}."
                 : "Modo simulado ativo para demo local e previsivel.");
 
         foreach (var agent in _agents)
@@ -42,7 +44,32 @@ public sealed class AgentWorkflowDemoService
                 $"{agent.Name} trabalhando",
                 agent.Responsibility);
 
-            await agent.ExecuteAsync(context, cancellationToken);
+            Exception? foundryException = null;
+            try
+            {
+                await agent.ExecuteAsync(context, cancellationToken);
+            }
+            catch (Exception ex) when (_options.IsConfigured)
+            {
+                foundryException = ex;
+            }
+
+            if (foundryException is not null)
+            {
+                yield return context.AddEvent(
+                    WorkflowEventType.AgentCompleted,
+                    agent.Name,
+                    $"{agent.Name} falhou ao chamar Foundry",
+                    "Verifique endpoint, deployment, permissao RBAC/API key e conectividade.",
+                    foundryException.Message);
+
+                yield return context.AddEvent(
+                    WorkflowEventType.Completed,
+                    "Workflow",
+                    "Workflow interrompido",
+                    "A chamada real ao Foundry falhou. Altere Foundry:Mode para Simulated para usar o plano B de palco.");
+                yield break;
+            }
 
             yield return context.AddEvent(
                 WorkflowEventType.AgentCompleted,
@@ -57,9 +84,18 @@ public sealed class AgentWorkflowDemoService
                     WorkflowEventType.ApprovalRequired,
                     "Human-in-the-loop",
                     "Checkpoint humano",
-                    "Antes da revisao final, o fluxo pausa para confirmacao do operador.");
+                    "Antes da revisao final, o fluxo esta aguardando aprovacao do operador.");
 
-                await Task.Delay(350, cancellationToken);
+                if (waitForHumanApproval is not null)
+                {
+                    await waitForHumanApproval(cancellationToken);
+                }
+
+                yield return context.AddEvent(
+                    WorkflowEventType.ApprovalGranted,
+                    "Human-in-the-loop",
+                    "Aprovacao recebida",
+                    "Operador liberou a revisao final. O Reviewer pode continuar.");
             }
         }
 
