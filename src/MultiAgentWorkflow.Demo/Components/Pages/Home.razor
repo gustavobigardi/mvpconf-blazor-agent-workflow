@@ -1,0 +1,144 @@
+@page "/"
+@rendermode InteractiveServer
+@inject AgentWorkflowDemoService Workflow
+@implements IDisposable
+
+<PageTitle>Multi-Agent Workflow Demo</PageTitle>
+
+<section class="demo-shell">
+    <div class="hero-band">
+        <div>
+            <span class="eyebrow">Microsoft Agent Workflow · .NET · Blazor</span>
+            <h1>Workflow multi-agent em tempo real</h1>
+            <p>
+                Uma demo de palco para mostrar orquestração, eventos, checkpoint humano e resultado final
+                sem depender da nuvem durante a apresentação.
+            </p>
+        </div>
+        <div class="foundry-status @(Workflow.Options.IsConfigured ? "ready" : "simulated")">
+            <span>@(Workflow.Options.IsConfigured ? "Foundry configurado" : "Modo simulado")</span>
+            <strong>@(Workflow.Options.ModelDeploymentName ?? "sem deployment")</strong>
+            @if (!Workflow.Options.IsConfigured)
+            {
+                <small>Configure Foundry no appsettings ou user-secrets.</small>
+            }
+        </div>
+    </div>
+
+    <div class="workspace-grid">
+        <section class="control-panel">
+            <h2>Objetivo do usuário</h2>
+            <textarea @bind="Goal" disabled="@IsRunning"></textarea>
+
+            <label class="check-row">
+                <input type="checkbox" @bind="RequireApproval" disabled="@IsRunning" />
+                Pausar para aprovação humana antes da revisão final
+            </label>
+
+            <div class="actions">
+                <button class="primary-action" @onclick="RunWorkflowAsync" disabled="@IsRunning">
+                    @(IsRunning ? "Executando..." : "Executar workflow")
+                </button>
+                <button class="secondary-action" @onclick="Reset" disabled="@IsRunning">
+                    Limpar
+                </button>
+            </div>
+
+            <div class="agent-list">
+                @foreach (var agent in Workflow.Agents)
+                {
+                    <article>
+                        <strong>@agent.Name</strong>
+                        <span>@agent.Responsibility</span>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="timeline-panel">
+            <div class="panel-heading">
+                <h2>Eventos do workflow</h2>
+                <span>@Events.Count evento(s)</span>
+            </div>
+
+            @if (Events.Count == 0)
+            {
+                <div class="empty-state">
+                    Envie um objetivo para ver o roteamento entre agentes.
+                </div>
+            }
+            else
+            {
+                <div class="timeline">
+                    @foreach (var item in Events)
+                    {
+                        <article class="timeline-item @item.Type.ToString().ToLowerInvariant()">
+                            <div class="timeline-dot"></div>
+                            <div>
+                                <div class="event-meta">
+                                    <strong>@item.Agent</strong>
+                                    <time>@item.Timestamp.ToString("HH:mm:ss")</time>
+                                </div>
+                                <h3>@item.Title</h3>
+                                <p>@item.Message</p>
+                                @if (!string.IsNullOrWhiteSpace(item.Payload))
+                                {
+                                    <pre>@item.Payload</pre>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+</section>
+
+@code {
+    private readonly List<WorkflowEvent> Events = [];
+    private CancellationTokenSource? _runCts;
+
+    private string Goal { get; set; } =
+        "Triar um incidente de checkout intermitente apos deploy: clientes relatam erro ao finalizar compra, impacto alto e causa ainda desconhecida.";
+
+    private bool RequireApproval { get; set; } = true;
+    private bool IsRunning { get; set; }
+
+    private async Task RunWorkflowAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Goal))
+        {
+            return;
+        }
+
+        Events.Clear();
+        IsRunning = true;
+        _runCts = new CancellationTokenSource();
+
+        try
+        {
+            var request = new WorkflowRequest(Goal.Trim(), RequireApproval);
+            await foreach (var item in Workflow.RunAsync(request, _runCts.Token))
+            {
+                Events.Add(item);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        finally
+        {
+            IsRunning = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void Reset()
+    {
+        Events.Clear();
+    }
+
+    public void Dispose()
+    {
+        _runCts?.Cancel();
+        _runCts?.Dispose();
+    }
+}

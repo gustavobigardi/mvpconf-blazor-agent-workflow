@@ -1,0 +1,19 @@
+bin/
+obj/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+.DS_Store
+
+# Local secrets
+secrets.json
+.env
+.env.*
+!.env.example
+.keys/
+src/**/.keys/
+
+# Generated presentation workspaces
+outputs/
